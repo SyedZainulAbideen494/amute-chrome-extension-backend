@@ -15,12 +15,10 @@ const uuid = require('uuid');
 const cron = require('node-cron');
 const PORT = process.env.PORT || 8080;
 const axios = require('axios');
-const stripe = require('stripe')('sk_test_51LoS3iSGyKMMAZwstPlmLCEi1eBUy7MsjYxiKsD1lT31LQwvPZYPvqCdfgH9xl8KgeJoVn6EVPMgnMRsFInhnnnb00WhKhMOq7');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const QRCode = require('qrcode');
 const fs = require('fs');
 const cheerio = require('cheerio');
-
 
 // URL Constants
 const BASE_URL = 'https://b6fc791aa51cdc4cb2047b4ffdf0773c.serveo.net';
@@ -74,6 +72,25 @@ connection.getConnection((err) => {
 app.get('/', (req, res) => {
   res.send('Welcome!');
 });
+
+// Function to fetch data from Wikipedia API
+async function fetchInfoFromWikipedia(query) {
+  try {
+    const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
+    const response = await axios.get(url);
+    const { data } = response;
+
+    if (data.type && data.type === 'https://mediawiki.org/wiki/HyperSwitch/errors/not_found') {
+      console.log(`Page not found for ${query}`);
+      return null; // Return null if page not found
+    } else {
+      return data.extract; // Return the extracted summary
+    }
+  } catch (error) {
+    console.error('Error fetching data:', error.message);
+    throw error; // Throw the error for handling in calling function
+  }
+}
 // Get all to-do items
 app.get('/todos', (req, res) => {
   connection.query('SELECT * FROM todos', (err, results) => {
@@ -154,12 +171,6 @@ const generateResponse = (message) => {
     const normalizedSiteName = siteName.toLowerCase();
   
     switch (normalizedSiteName) {
-      case 'youtube':
-        return 'https://www.youtube.com';
-      case 'google':
-        return 'https://www.google.com';
-      case 'instagram':
-        return 'https://www.instagram.com';
       default:
         if (normalizedSiteName.endsWith('.com') || normalizedSiteName.endsWith('.org') || normalizedSiteName.endsWith('.net')) {
           return `https://www.${siteName}`;
@@ -266,7 +277,6 @@ if (lowerCaseMessage.includes(' to my to-do list')) {
   }
 
   
-
   // Default responses (existing functionality)
   const responses = {
     hi: `Hi there! How can I assist you today?`,
@@ -333,16 +343,35 @@ const convertDistance = (value, fromUnit, toUnit) => {
   return result !== null ? result.toFixed(2) : null;
 };
 
-app.post('/send-message', (req, res) => {
+app.post('/send-message', async (req, res) => {
   const { message } = req.body;
-  const responseMessage = generateResponse(message);
+  
+  try {
+    let responseMessage = '';
 
-  console.log('Received message:', message);
-  console.log('Generated response:', responseMessage);
+    // Check if the message matches "what is (thing)" or "who is (person)"
+    const lowerCaseMessage = message.toLowerCase().trim();
+    if (lowerCaseMessage.startsWith('what is ') || lowerCaseMessage.startsWith('who is ')) {
+      const searchTerm = lowerCaseMessage.replace('what is ', '').replace('who is ', '').trim();
+      
+      // Fetch information from Wikipedia using fetchInfoFromWikipedia function
+      responseMessage = await fetchInfoFromWikipedia(searchTerm);
+    } else {
+      // Generate response using generateResponse function
+      responseMessage = generateResponse(message);
+    }
 
-  res.json({ message: responseMessage });
+    // Log received and generated messages
+    console.log('Received message:', message);
+    console.log('Generated response:', responseMessage);
+    
+    // Send the response back to the client
+    res.json({ message: responseMessage });
+  } catch (error) {
+    console.error('Error processing request:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
-
 
 // Start the server
 app.listen(PORT, () => {
