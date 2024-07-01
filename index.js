@@ -61,7 +61,38 @@ app.get('/', (req, res) => {
   res.send('Welcome!');
 });
 
+app.get('/auth/spotify/token', async (req, res) => {
+  try {
+    // Use your Spotify app client ID and client secret
+    const clientId = '0aac6cb1ec104103a5e2e5d6f9b490e7';
+    const clientSecret = '4e2d9a5a3be9406c970cf3f6cb78b7a3';
 
+    // Base64 encode client ID and client secret as required by Spotify
+    const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+
+    // Request parameters for Spotify token endpoint
+    const params = new URLSearchParams({
+      grant_type: 'client_credentials'
+    });
+
+    // Spotify token endpoint URL
+    const tokenEndpoint = 'https://accounts.spotify.com/api/token';
+
+    // Make a POST request to Spotify token endpoint
+    const response = await axios.post(tokenEndpoint, params, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${basicAuth}` // Corrected the interpolation syntax
+      }
+    });
+
+    // Send back the access token in the response
+    res.send({ access_token: response.data.access_token });
+  } catch (error) {
+    console.error('Error fetching Spotify token:', error);
+    res.status(500).send('Failed to fetch Spotify access token');
+  }
+});
 
 // Function to fetch data from Wikipedia API
 async function fetchInfoFromWikipedia(query) {
@@ -116,6 +147,8 @@ app.delete('/todos/:id', (req, res) => {
     res.json({ message: 'To-do item deleted' });
   });
 });
+
+
 
 // Endpoint to handle POST requests for storing notes
 app.post('/api/notes', (req, res) => {
@@ -269,7 +302,18 @@ if (lowerCaseMessage.includes(' to my to-do list')) {
     }
   }
   
-  
+
+   // Handle playing a song
+   if (lowerCaseMessage.startsWith('play ')) {
+    const songRequest = lowerCaseMessage.substring(5).trim();
+    if (songRequest.includes('by')) {
+      const [song, artist] = songRequest.split(' by ');
+      return `Play a song by ${song.trim()} by ${artist.trim()}`;
+    }
+    return `Sorry, I need both the song and artist to play a song.`;
+  }
+
+
   // Default responses (existing functionality)
   const responses = {
     hi: `Hi there! How can I assist you today?`,
@@ -338,7 +382,7 @@ const convertDistance = (value, fromUnit, toUnit) => {
 
 app.post('/send-message', async (req, res) => {
   const { message } = req.body;
-  
+
   try {
     let responseMessage = '';
 
@@ -370,3 +414,4 @@ app.post('/send-message', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
