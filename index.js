@@ -10,22 +10,10 @@ const saltRounds = 10;
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const path = require("path");
-const nodemailer = require('nodemailer');
-const uuid = require('uuid');
-const cron = require('node-cron');
 const PORT = process.env.PORT || 8080;
 const axios = require('axios');
-const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
-const QRCode = require('qrcode');
-const fs = require('fs');
 const cheerio = require('cheerio');
-
-// URL Constants
-const BASE_URL = 'https://b6fc791aa51cdc4cb2047b4ffdf0773c.serveo.net';
-const SUCCESS_URL = `${BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}&sender_id=`;
-const CANCEL_URL = `${BASE_URL}/cancel`;
-const TICKET_URL = `${BASE_URL}/tickets/`;
-const DOCUMENT_URL = `${BASE_URL}/documents/`;
+const querystring = require('querystring'); // Include the querystring module
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -72,6 +60,8 @@ connection.getConnection((err) => {
 app.get('/', (req, res) => {
   res.send('Welcome!');
 });
+
+
 
 // Function to fetch data from Wikipedia API
 async function fetchInfoFromWikipedia(query) {
@@ -162,6 +152,7 @@ app.get('/api/notes', (req, res) => {
 });
 
 
+
 // Enhanced chatbot response generation
 const generateResponse = (message) => {
   const lowerCaseMessage = message.toLowerCase().trim();
@@ -195,6 +186,8 @@ const generateResponse = (message) => {
     const reminderMessage = lowerCaseMessage.substring(12).trim();
     return `Reminder set: ${reminderMessage}`;
   }
+
+  
 
   // Handle stopping reminders
   if (lowerCaseMessage.includes('stop') && lowerCaseMessage.includes('reminders')) {
@@ -275,7 +268,7 @@ if (lowerCaseMessage.includes(' to my to-do list')) {
       return 'Sorry, I couldn\'t understand the conversion request.';
     }
   }
-
+  
   
   // Default responses (existing functionality)
   const responses = {
